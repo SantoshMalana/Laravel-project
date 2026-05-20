@@ -3,42 +3,59 @@ set -e
 
 echo "=== Starting Dak Ghar Export Portal ==="
 
-# 1. Ensure .env file exists (Laravel requires it)
-if [ ! -f /var/www/html/.env ]; then
-    echo ">>> Creating .env from .env.example..."
-    cp /var/www/html/.env.example /var/www/html/.env
-fi
+# 1. Generate a clean .env file directly (no sed, no parsing issues)
+cat > /var/www/html/.env << ENVFILE
+APP_NAME="Dak Ghar Export Portal"
+APP_ENV=production
+APP_KEY=${APP_KEY:-base64:O0jg3qdKd57pC7VyZvTNVL0ERzjAO4haN8LsiW3e5K8=}
+APP_DEBUG=false
+APP_URL=${RENDER_EXTERNAL_URL:-http://localhost}
 
-# 2. Inject environment variables into .env (Render passes them as OS env vars)
-# Override key values from Render's environment variables if they are set
-if [ -n "$APP_KEY" ]; then
-    sed -i "s|^APP_KEY=.*|APP_KEY=${APP_KEY}|" /var/www/html/.env
-fi
-sed -i "s|^APP_ENV=.*|APP_ENV=production|" /var/www/html/.env
-sed -i "s|^APP_DEBUG=.*|APP_DEBUG=false|" /var/www/html/.env
-sed -i "s|^DB_CONNECTION=.*|DB_CONNECTION=sqlite|" /var/www/html/.env
-sed -i "s|^SESSION_DRIVER=.*|SESSION_DRIVER=file|" /var/www/html/.env
-sed -i "s|^CACHE_STORE=.*|CACHE_STORE=file|" /var/www/html/.env
-sed -i "s|^QUEUE_CONNECTION=.*|QUEUE_CONNECTION=sync|" /var/www/html/.env
+APP_LOCALE=en
+APP_FALLBACK_LOCALE=en
+APP_FAKER_LOCALE=en_US
+APP_MAINTENANCE_DRIVER=file
 
-# If APP_URL is provided by Render (via RENDER_EXTERNAL_URL), set it
-if [ -n "$RENDER_EXTERNAL_URL" ]; then
-    sed -i "s|^APP_URL=.*|APP_URL=${RENDER_EXTERNAL_URL}|" /var/www/html/.env
-fi
+BCRYPT_ROUNDS=12
 
-echo ">>> .env configured for production."
+LOG_CHANNEL=stack
+LOG_STACK=single
+LOG_DEPRECATIONS_CHANNEL=null
+LOG_LEVEL=error
 
-# 3. Ensure SQLite database file exists
+DB_CONNECTION=sqlite
+
+SESSION_DRIVER=file
+SESSION_LIFETIME=120
+SESSION_ENCRYPT=false
+SESSION_PATH=/
+SESSION_DOMAIN=null
+
+BROADCAST_CONNECTION=log
+FILESYSTEM_DISK=local
+QUEUE_CONNECTION=sync
+
+CACHE_STORE=file
+
+MAIL_MAILER=log
+
+VITE_APP_NAME="Dak Ghar Export Portal"
+ENVFILE
+
+echo ">>> .env file created for production."
+
+# 2. Ensure SQLite database file exists
 touch /var/www/html/database/database.sqlite
 echo ">>> SQLite database file ready."
 
-# 4. Ensure storage directories exist
+# 3. Ensure storage directories exist
 mkdir -p /var/www/html/storage/framework/sessions
 mkdir -p /var/www/html/storage/framework/views
 mkdir -p /var/www/html/storage/framework/cache/data
 mkdir -p /var/www/html/storage/logs
+mkdir -p /var/www/html/bootstrap/cache
 
-# 5. Clear any stale caches from build phase
+# 4. Clear any stale caches from build phase
 cd /var/www/html
 php artisan config:clear
 php artisan cache:clear
@@ -46,21 +63,21 @@ php artisan route:clear
 php artisan view:clear
 echo ">>> Caches cleared."
 
-# 6. Run migrations
+# 5. Run migrations
 php artisan migrate --force
 echo ">>> Migrations complete."
 
-# 7. Seed database
+# 6. Seed database
 php artisan db:seed --force
 echo ">>> Database seeded."
 
-# 8. Cache config and routes for production performance
+# 7. Cache config and routes for production performance
 php artisan config:cache
 php artisan route:cache
 php artisan view:cache
 echo ">>> Production caches built."
 
-# 9. Fix ALL permissions for www-data (Apache user)
+# 8. Fix ALL permissions for www-data (Apache user)
 chown -R www-data:www-data /var/www/html/storage
 chown -R www-data:www-data /var/www/html/database
 chown -R www-data:www-data /var/www/html/bootstrap/cache
