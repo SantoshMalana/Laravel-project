@@ -47,5 +47,5 @@ RUN mkdir -p database \
 
 EXPOSE 80
 
-# Run migrations, seeders, and start Apache web server
-CMD php artisan migrate --force && php artisan db:seed --force && apache2-foreground
+# Run migrations, seeders, reset permissions, and start Apache web server
+CMD php artisan migrate --force && php artisan db:seed --force && chown -R www-data:www-data /var/www/html/storage /var/www/html/database /var/www/html/bootstrap/cache && apache2-foreground
